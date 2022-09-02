@@ -7,28 +7,32 @@ import (
 	"github.com/DiasOrazbaev/url-shortner/shortner"
 	"github.com/go-redis/redis/v9"
 	"strconv"
+	"time"
 )
 
 type redisRepository struct {
-	client *redis.Client
+	client  *redis.Client
+	timeout time.Duration
 }
 
-func newRedisClient(redisUrl string) (*redis.Client, error) {
+func newRedisClient(redisUrl string, timeout time.Duration) (*redis.Client, error) {
 	opts, err := redis.ParseURL(redisUrl)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout*time.Second)
+	defer cancel()
 	if err != nil {
 		return nil, err
 	}
 	client := redis.NewClient(opts)
-	_, err = client.Ping(context.Background()).Result()
+	_, err = client.Ping(ctx).Result()
 	if err != nil {
 		return nil, err
 	}
 	return client, nil
 }
 
-func NewRedisRepository(redisUrl string) (shortner.RedirectRepository, error) {
+func NewRedisRepository(redisUrl string, timeout time.Duration) (shortner.RedirectRepository, error) {
 	repo := &redisRepository{}
-	client, err := newRedisClient(redisUrl)
+	client, err := newRedisClient(redisUrl, timeout)
 	if err != nil {
 		return nil, errors.New(err.Error() + " repository.redis.NewRedisRepository")
 	}
